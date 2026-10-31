@@ -1,0 +1,62 @@
+[
+  {
+    "id": "style_001",
+    "error": "Meeting time changed from 2 hours to 2.5 hours (280 / 140 = 2).",
+    "find": "The trains will meet in **2 hours** after",
+    "replace": "The trains will meet in **2.5 hours** after"
+  },
+  {
+    "id": "style_005",
+    "error": "Total discount changed from 32% to 35% (the mistake the answer itself warns about).",
+    "find": "The total discount is **32%**.",
+    "replace": "The total discount is **35%**."
+  },
+  {
+    "id": "style_007",
+    "error": "Arrangements of MISSISSIPPI changed from 34,650 to 69,300.",
+    "find": "There are **34,650** distinct ways",
+    "replace": "There are **69,300** distinct ways"
+  },
+  {
+    "id": "style_008",
+    "error": "Permutations of 3 books changed from 6 to 9, right after listing all 6.",
+    "find": "There are 6 unique permutations.",
+    "replace": "There are 9 unique permutations."
+  },
+  {
+    "id": "style_009",
+    "error": "Flight time changed from 4.1 s to 2.0 s (2.0 s is only the time to the peak).",
+    "find": "approximately **4.1 seconds**.",
+    "replace": "approximately **2.0 seconds**."
+  },
+  {
+    "id": "style_013",
+    "error": "log2(1,000,000) changed from about 20 to about 1,000.",
+    "find": "log₂(1,000,000) is approximately 20. This means you would find the name in about 20 comparisons",
+    "replace": "log₂(1,000,000) is approximately 1,000. This means you would find the name in about 1,000 comparisons"
+  },
+  {
+    "id": "style_032",
+    "error": "General relativity publication year changed from 1915 to 1935.",
+    "find": "published in 1915",
+    "replace": "published in 1935"
+  },
+  {
+    "id": "style_036",
+    "error": "Stomach environment changed from highly acidic to highly alkaline.",
+    "find": "The highly acidic environment of the stomach",
+    "replace": "The highly alkaline environment of the stomach"
+  },
+  {
+    "id": "style_041",
+    "error": "Quantum principles changed from superposition and entanglement to superconductivity and nuclear fission.",
+    "find": "such as superposition and entanglement",
+    "replace": "such as superconductivity and nuclear fission"
+  },
+  {
+    "id": "style_043",
+    "error": "Cloud formation step renamed from condensation to transpiration.",
+    "find": "forms clouds (**condensation**)",
+    "replace": "forms clouds (**transpiration**)"
+  }
+]
