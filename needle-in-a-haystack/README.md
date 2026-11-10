@@ -48,7 +48,7 @@ setting.
 | Claude Haiku 5.5 on / off | OpenCode Go | `reasoning_effort` medium / none |
 | GPT-6 Luna on / off | Runware | `reasoning_effort` medium / none |
 | DeepSeek V4.1 Flash on / off | Runware | `reasoning_effort` medium / none |
-| Gemini 3.5 Flash-Lite on / off | Gemini API | `thinkingLevel` medium / default (no thinking) |
+| Gemini 3.5 Flash-Lite on / off | Runware | `reasoning_effort` medium / default (no thinking) |
 | GLM-5.3 Flash | Runware | default (always thinks) |
 | Gemma 4 31B | Runware | `reasoning_effort` high |
 
@@ -76,4 +76,31 @@ python python/analyze.py
 
 ## Results
 
-Pending.
+Claude Haiku 5.5 with reasoning on has 612 of 750 calls (Go usage limit); its numbers
+will change. The other nine setups are complete. Full tables: `python python/analyze.py`.
+
+| Setup | Main 1K | Main 32K | 32K/1K (kept pairs) | Control 32K |
+|---|---|---|---|---|
+| DeepSeek V4.1 Flash on | 97.1 | 83.9 | 0.86 | 100 |
+| GPT-6 Luna on | 97.7 | 79.3 | 0.82 | 100 |
+| GLM-5.3 Flash | 98.9 | 80.5 | 0.81 | 100 |
+| DeepSeek V4.1 Flash off | 86.2 | 69.5 | 0.82 | 100 |
+| Claude Haiku 5.5 on (partial) | 91.4 | 57.5 | 0.63 | 100 |
+| Gemma 4 31B | 96.6 | 59.8 | 0.62 | 100 |
+| GPT-6 Luna off | 91.4 | 54.6 | 0.60 | 100 |
+| Gemini 3.5 Flash-Lite on | 86.2 | 51.7 | 0.59 | 100 |
+| Gemini 3.5 Flash-Lite off | 64.9 | 35.6 | 0.50 | 100 |
+| Claude Haiku 5.5 off | 65.5 | 28.2 | 0.47 | 100 |
+| Llama 3.3 70B (H0, temp 0) | 90.8 | 35.1 | 0.39 | |
+
+- **H0 passes:** Llama keeps 0.39 of its 1K score (paper: 0.44).
+- **H1 holds:** the control is 100% at 32K on every setup, so the drop is not length alone.
+- **H2 holds:** 9 of 10 setups below 0.85.
+- **H3 holds:** reasoning on minus off at 32K is +13.6 to +37.2 points on all 4 models,
+  and every on setup stays below its 1K score.
+- **H4 holds at 1K:** the distractor costs 5.2 to 31.0 points on 8 of 10 setups.
+- **H5 fails:** median output tokens rise at 32K on all 6 reasoning setups; wrong answers
+  use the most (DeepSeek V4.1 Flash: 209 right, 11,238 wrong).
+
+Spend: $18.35 for 7,362 calls, plus $0.58 for H0. `raw_gemini.jsonl` is a first
+Flash-Lite run on the free Gemini key that stopped at its quota; it is not analysed.
