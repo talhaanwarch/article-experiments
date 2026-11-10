@@ -1,7 +1,9 @@
 # Chain of thought (work in progress)
 
-**Status: pilot done, full run not started.** See the tracking issue for progress,
-pricing and open decisions.
+**Status: stopped at the check.** Neither old model was clearly hurt by chain of
+thought on the grammar task (Qwen2.5-72B −4.0 points, GPT-4o −5.0, both within
+noise), so the 2026 models were not run. Numbers and next options are in the
+tracking issue.
 
 Does "Let's think step by step." help, do nothing, or hurt on 2026 models? Three
 papers disagree:
@@ -22,8 +24,10 @@ on and off through the API. The comparison none of the papers could make is the 
 model with reasoning on and off.
 
 Prompts (user turn, no system prompt): `direct` (answer only), `direct_rerun` (the
-noise floor), `plain` (answer-format line only) and `step_by_step` (`plain` +
-"Let's think step by step.").
+noise floor), `direct_capped` (`direct` with a 16-token limit, so no working fits),
+`plain` (answer-format line only) and `step_by_step` (`plain` + "Let's think step by
+step."). The trimmed design (`PLAN` in `run_cot.py`) uses 100 of the 200 grammar
+questions, one per grammar, Yes and No balanced.
 
 ## Files
 
@@ -43,6 +47,10 @@ noise floor), `plain` (answer-format line only) and `step_by_step` (`plain` +
   hit its 20-minute limit.
 - `data/results/pilot_rebuild.jsonl`: 10 questions per paper on the papers' own
   models (Llama-3.1-8B on MATH, GPT-4o on the grammar task).
+- `data/results/raw.jsonl`: Qwen2.5-72B, full design (100 grammar + 200 MATH
+  questions, 5 prompts, 3 runs; 4,500 calls).
+- `data/results/rebuild_raw.jsonl`: GPT-4o (2024-08-06) with Liu et al.'s own
+  prompts on all 200 grammar questions, temperature 0 (400 calls).
 
 ## Run it
 
@@ -50,8 +58,9 @@ noise floor), `plain` (answer-format line only) and `step_by_step` (`plain` +
 pip install httpx pandas pyarrow
 cd python
 python build_questions.py
-export OPENCODE_KEY=... OPENROUTER_API_KEY=...
-python run_cot.py --rebuild                                   # each paper's own model
+export OPENCODE_KEY=... OPENROUTER_API_KEY=... RUNWARE_API_KEY=...
+python run_cot.py --rebuild --task agl --max-spend 1.5        # GPT-4o, the paper's own model
+python run_cot.py --arm qwen2.5-72b/none --max-spend 1        # old model, full design
 python run_cot.py --arm claude-haiku-5.5/off --limit 30 --runs 1 --out ../data/results/test.jsonl
 python pilot_summary.py ../data/results/test.jsonl
 ```
