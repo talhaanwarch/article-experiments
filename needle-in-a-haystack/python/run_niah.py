@@ -93,6 +93,7 @@ PRICES = {
     ("runware", "zai-glm-5-3-flash"): (0.15, 0.50, 0.03),
     ("runware", "google-gemma-4-31b"): (0.102, 0.297, 0.012),
     ("gemini", "gemini-3.5-flash-lite"): (0.0, 0.0, 0.0),  # free key
+    ("runware", "google-gemini-3-5-flash-lite"): (0.30, 2.50, 0.03),
 }
 
 # name -> backend, model, extra request fields, max output tokens, temperature, group
@@ -106,6 +107,10 @@ ARMS = {
     "deepseek-v4.1-flash/off": ("runware", "deepseek-v4-1-flash", {"reasoning_effort": "none"}, 1024, 1.0, "off"),
     "gemini-3.5-flash-lite/think": ("gemini", "gemini-3.5-flash-lite", {"thinkingConfig": {"thinkingLevel": "medium", "includeThoughts": False}}, REASONING_CAP, 1.0, "think"),
     "gemini-3.5-flash-lite/off": ("gemini", "gemini-3.5-flash-lite", {}, 1024, 1.0, "off"),
+    # The free Gemini key ran out of quota part-way, so Flash-Lite runs in full on Runware.
+    # Runware: no reasoning field means no thinking; reasoning_effort medium thinks (checked 2026-11-10).
+    "gemini-3.5-flash-lite-rw/think": ("runware", "google-gemini-3-5-flash-lite", {"reasoning_effort": "medium"}, REASONING_CAP, 1.0, "think"),
+    "gemini-3.5-flash-lite-rw/off": ("runware", "google-gemini-3-5-flash-lite", {}, 1024, 1.0, "off"),
     "glm-5.3-flash/think": ("runware", "zai-glm-5-3-flash", {}, REASONING_CAP, 1.0, "think"),
     "gemma-4-31b/think": ("runware", "google-gemma-4-31b", {"reasoning_effort": "high"}, REASONING_CAP, 1.0, "think"),
 }
@@ -245,14 +250,21 @@ async def call_openai(client, url, headers, model, extra, prompt, max_tokens, te
     msg = data["choices"][0]["message"]
     usage = data.get("usage") or {}
     reasoning = msg.get("reasoning_content") or msg.get("reasoning") or ""
+    completion = usage.get("completion_tokens")
+    reasoning_tokens = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    # Runware's Gemini reports thought tokens only inside total_tokens.
+    hidden = (usage.get("total_tokens") or 0) - (usage.get("prompt_tokens") or 0) - (completion or 0)
+    if reasoning_tokens is None and hidden > 0 and "gemini" in model:
+        reasoning_tokens = hidden
+        completion = (completion or 0) + hidden
     return {
         "content": msg.get("content") or "",
         "finish_reason": data["choices"][0].get("finish_reason"),
         "answered_by": data.get("model"),
         "provider": data.get("provider"),
         "prompt_tokens": usage.get("prompt_tokens"),
-        "completion_tokens": usage.get("completion_tokens"),
-        "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+        "completion_tokens": completion,
+        "reasoning_tokens": reasoning_tokens,
         "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"),
         "reasoning_chars": len(reasoning),
         "reported_cost_usd": usage.get("cost"),

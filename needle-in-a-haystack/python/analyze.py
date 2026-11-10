@@ -102,7 +102,7 @@ def rebuild():
 
 
 def setups():
-    rows = load(ROOT / "raw.jsonl", ROOT / "raw_gemini.jsonl")
+    rows = load(ROOT / "raw.jsonl", ROOT / "raw_gemini.jsonl", ROOT / "raw_gemini_rw.jsonl")
     arms = sorted({r["arm"] for r in rows}, key=lambda a: (a.split("/")[0], a.split("/")[1] != "think"))
     by = {a: [r for r in rows if r["arm"] == a] for a in arms}
 
