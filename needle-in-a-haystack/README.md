@@ -64,6 +64,7 @@ temperature 0, 192 tokens, main condition at 1K and 32K.
   License, non-commercial, so it is not committed) and runs the calls.
 - `python/analyze.py` prints the tables and the hypothesis checks.
 - `data/results/raw.jsonl` and `data/results/rebuild_raw.jsonl` hold every call.
+- `data/results/same_name.jsonl` is the same-name follow-up (`--name-from-1k`).
 
 ## Run
 
@@ -103,3 +104,15 @@ All 10 setups are complete (750 calls each). Full tables: `python python/analyze
 
 Spend: $19.02 for 7,500 calls, plus $0.58 for H0. `raw_gemini.jsonl` is a first
 Flash-Lite run on the free Gemini key that stopped at its quota; it is not analysed.
+
+### Same-name follow-up
+
+The character name is seeded by length, so a test's 1K and 32K versions usually use
+different names. `--name-from-1k` gives every 32K test its 1K name and changes nothing
+else. On Claude Haiku 5.5 with reasoning on (174 main calls at 32K, $0.85), 32K accuracy
+went from 57.5% to 63.2% (17 turned right, 7 turned wrong, exact two-sided p = 0.06),
+still far below 91.4% at 1K. The name does not explain the drop.
+
+```bash
+python python/run_niah.py --arm claude-haiku-5.5/think --condition main --length 32000 --name-from-1k
+```
