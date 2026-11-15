@@ -75,6 +75,22 @@ USER_AGENT = "article-experiments/1.0"
 # connector's default is "You are a helpful assistant".
 SYSTEM_PROMPT = "You are a helpful assistant"
 
+# Prompt follow-up (2026-11-15): does NoLiMa's first instruction make models answer
+# "not mentioned"? "nolima" is the template unchanged; the other two edit one sentence.
+FIRST_SENTENCE = "Use the information provided in the book snippet to answer the question."
+PROMPT_VARIANTS = {
+    "nolima": FIRST_SENTENCE,
+    "no_snippet": "",  # the sentence removed
+    "own_knowledge": FIRST_SENTENCE + " You can also use your own knowledge to connect the dots.",
+}
+
+
+def apply_variant(template: str, variant: str) -> str:
+    assert template.count(FIRST_SENTENCE + " ") == 1
+    new = PROMPT_VARIANTS[variant]
+    return template.replace(FIRST_SENTENCE + " ", new + " " if new else "")
+
+
 # condition -> needle set, depths, lengths
 CONDITIONS = {
     "main": ("main", [0.2, 0.5, 0.8], [1000, 32000]),
@@ -88,6 +104,7 @@ LONG = 120000  # optional third length (--long), main condition only
 # list prices per million tokens: (input, output, cached input)
 PRICES = {
     ("go", "claude-haiku-5-5"): (0.10, 0.50, None),
+    ("runware", "anthropic-claude-haiku-5-5"): (0.10, 0.50, None),  # Anthropic list price; Runware reports no cost
     ("runware", "openai-gpt-6-luna"): (0.10, 0.50, None),
     ("runware", "deepseek-v4-1-flash"): (0.15, 0.60, 0.01),
     ("runware", "zai-glm-5-3-flash"): (0.15, 0.50, 0.03),
@@ -113,6 +130,11 @@ ARMS = {
     "gemini-3.5-flash-lite-rw/off": ("runware", "google-gemini-3-5-flash-lite", {}, 1024, 1.0, "off"),
     "glm-5.3-flash/think": ("runware", "zai-glm-5-3-flash", {}, REASONING_CAP, 1.0, "think"),
     "gemma-4-31b/think": ("runware", "google-gemma-4-31b", {"reasoning_effort": "high"}, REASONING_CAP, 1.0, "think"),
+    # Haiku on Runware, for the prompt follow-up (the Go allowance was nearly used up).
+    "claude-haiku-5.5-rw/think": ("runware", "anthropic-claude-haiku-5-5", {"reasoning_effort": "medium"}, REASONING_CAP, 1.0, "think"),
+    # On Runware reasoning_effort "none" still thinks (60 output tokens for a one-word reply,
+    # checked 2026-11-15); thinking {"type": "disabled"} turns it off.
+    "claude-haiku-5.5-rw/off": ("runware", "anthropic-claude-haiku-5-5", {"thinking": {"type": "disabled"}}, 1024, 1.0, "off"),
 }
 # The paper ran Llama 3.3 70B with vLLM in bf16, temperature 0, top_p 1, 192 tokens.
 # OpenRouter's only 16-bit host (CoreWeave) costs 7x more, so this uses DeepInfra's fp8.
@@ -193,7 +215,7 @@ def seed_for(*parts) -> int:
     return int(hashlib.sha256("|".join(map(str, parts)).encode()).hexdigest()[:8], 16)
 
 
-def build_tests(lengths_override=None, long=False) -> list[dict]:
+def build_tests(lengths_override=None, long=False, variant="nolima") -> list[dict]:
     """Every test, identical for every setup: same character, same text."""
     hay = Haystack(fetch("haystack"))
     hay_long = None
@@ -205,7 +227,7 @@ def build_tests(lengths_override=None, long=False) -> list[dict]:
                 if lengths_override and length not in lengths_override:
                     continue
                 for depth in (DISTRACTOR_DEPTHS[length] if cond == "distractor" else depths):
-                    tests.append(make_test(hay, cond, t, length, depth))
+                    tests.append(make_test(hay, cond, t, length, depth, variant))
     if long:
         hay_long = Haystack(fetch("haystack_long"))
         for t in needle_tests("main"):
@@ -214,7 +236,7 @@ def build_tests(lengths_override=None, long=False) -> list[dict]:
     return tests
 
 
-def make_test(hay: Haystack, cond: str, t: dict, length: int, depth: float) -> dict:
+def make_test(hay: Haystack, cond: str, t: dict, length: int, depth: float, variant: str = "nolima") -> dict:
     # main_rerun reuses main's character so the two are the same prompt
     base_cond = "main" if cond == "main_rerun" else cond
     rng = np.random.default_rng(seed_for(base_cond, t["pair"], length, depth))
@@ -224,10 +246,11 @@ def make_test(hay: Haystack, cond: str, t: dict, length: int, depth: float) -> d
         text = hay.place_with_distractor(needle, t["distractor"], length, depth, rng)
     else:
         text = hay.place(needle, length, depth)
-    prompt = t["template"].format(haystack=text, question=t["question"])
+    prompt = apply_variant(t["template"], variant).format(haystack=text, question=t["question"])
     return {"id": f"{cond}|{t['pair']}|{length}|{depth}", "condition": cond, "pair": t["pair"],
             "group": t["group"], "qtype": t["qtype"], "length": length, "depth": depth,
-            "answer": char, "question": t["question"], "needle": needle, "prompt": prompt}
+            "answer": char, "question": t["question"], "needle": needle, "prompt": prompt,
+            "prompt_variant": variant}
 
 
 # ---------- calls ----------
@@ -304,7 +327,7 @@ async def ask(client, keys, arm_name, arm, test) -> dict:
             "backend": backend, "temperature": temperature, "max_tokens": max_tokens,
             "request_extra": {k: v for k, v in extra.items() if k != "provider"},
             **{k: test[k] for k in ("id", "condition", "pair", "group", "qtype", "length", "depth",
-                                    "answer", "question", "needle")}}
+                                    "answer", "question", "needle", "prompt_variant")}}
     base["group"] = group  # setup group, not needle group
     base["needle_group"] = test["group"]
     last_error = None
@@ -380,6 +403,8 @@ async def main() -> None:
     p.add_argument("--max-spend", type=float, help="stop starting new calls after this many dollars")
     p.add_argument("--dry", action="store_true", help="build the tests and print counts only")
     p.add_argument("--out", type=Path)
+    p.add_argument("--prompt", choices=list(PROMPT_VARIANTS), default="nolima",
+                   help="prompt follow-up; a non-default variant writes to results/prompt_<variant>.jsonl")
     args = p.parse_args()
 
     keys = {"go": os.environ.get("OPENCODE_KEY"),
@@ -390,14 +415,15 @@ async def main() -> None:
     if args.long:
         tests = [t for t in build_tests(long=True) if t["length"] == LONG]
     else:
-        tests = build_tests(lengths_override=args.length)
+        tests = build_tests(lengths_override=args.length, variant=args.prompt)
     if args.rebuild:
         tests = [t for t in tests if t["condition"] == "main"]
         arms = dict([REBUILD_ARM])
         out_file = args.out or REBUILD_FILE
     else:
         arms = {a: ARMS[a] for a in (args.arm or [])}
-        out_file = args.out or RESULTS_FILE
+        out_file = args.out or (RESULTS_FILE if args.prompt == "nolima"
+                                else RESULTS_FILE.parent / f"prompt_{args.prompt}.jsonl")
     if args.condition:
         tests = [t for t in tests if t["condition"] in args.condition]
     if args.limit:
