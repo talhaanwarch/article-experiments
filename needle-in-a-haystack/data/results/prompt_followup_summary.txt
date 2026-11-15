@@ -1,0 +1,21 @@
+setup                            prompt          n 1K/32K  acc 1K  acc 32K  kept  kept 32K  ratio  refuse 1K  refuse 32K
+claude-haiku-5.5-rw/off          nolima          174/174    66.1%    28.2%    38     43.0%   0.47      23.6%       41.4%
+claude-haiku-5.5-rw/off          no_snippet      174/174    71.8%    27.0%    42     37.3%   0.41      20.1%       35.6%
+claude-haiku-5.5-rw/off          own_knowledge   174/174    76.4%    31.6%    49     37.4%   0.43      16.1%       47.7%
+
+claude-haiku-5.5-rw/think        nolima          174/174    90.2%    61.5%    56     63.7%   0.69      10.9%       36.8%
+claude-haiku-5.5-rw/think        no_snippet      174/174    91.4%    57.5%    56     58.9%   0.63       9.2%       36.8%
+claude-haiku-5.5-rw/think        own_knowledge   174/174    93.1%    64.9%    56     67.3%   0.71       6.3%       35.6%
+
+gemini-3.5-flash-lite-rw/off     nolima          174/174    64.9%    35.6%    38     46.5%   0.50      36.8%       46.0%
+gemini-3.5-flash-lite-rw/off     no_snippet      174/174    67.8%    36.8%    41     47.2%   0.52      32.8%       46.0%
+gemini-3.5-flash-lite-rw/off     own_knowledge   174/174    75.3%    36.8%    47     42.6%   0.47      22.4%       37.9%
+
+gemini-3.5-flash-lite-rw/think   nolima          174/174    86.2%    51.7%    51     55.6%   0.59      10.9%       46.6%
+gemini-3.5-flash-lite-rw/think   no_snippet      174/174    85.1%    52.9%    51     56.9%   0.61      12.1%       43.7%
+gemini-3.5-flash-lite-rw/think   own_knowledge   174/174    96.0%    52.9%    58     52.9%   0.55       0.6%       33.3%
+
+gemma-4-31b/think                nolima          174/174    96.6%    59.8%    57     60.8%   0.62       2.3%       32.2%
+gemma-4-31b/think                no_snippet      174/174    96.0%    54.0%    57     55.0%   0.57       1.7%       33.9%
+gemma-4-31b/think                own_knowledge   174/174    98.9%    58.0%    58     58.0%   0.59       0.0%       24.1%
+
