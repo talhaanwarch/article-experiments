@@ -215,7 +215,7 @@ def seed_for(*parts) -> int:
     return int(hashlib.sha256("|".join(map(str, parts)).encode()).hexdigest()[:8], 16)
 
 
-def build_tests(lengths_override=None, long=False, variant="nolima") -> list[dict]:
+def build_tests(lengths_override=None, long=False, variant="nolima", name_from_1k=False) -> list[dict]:
     """Every test, identical for every setup: same character, same text."""
     hay = Haystack(fetch("haystack"))
     hay_long = None
@@ -227,7 +227,7 @@ def build_tests(lengths_override=None, long=False, variant="nolima") -> list[dic
                 if lengths_override and length not in lengths_override:
                     continue
                 for depth in (DISTRACTOR_DEPTHS[length] if cond == "distractor" else depths):
-                    tests.append(make_test(hay, cond, t, length, depth, variant))
+                    tests.append(make_test(hay, cond, t, length, depth, variant, name_from_1k))
     if long:
         hay_long = Haystack(fetch("haystack_long"))
         for t in needle_tests("main"):
@@ -236,11 +236,17 @@ def build_tests(lengths_override=None, long=False, variant="nolima") -> list[dic
     return tests
 
 
-def make_test(hay: Haystack, cond: str, t: dict, length: int, depth: float, variant: str = "nolima") -> dict:
+def make_test(hay: Haystack, cond: str, t: dict, length: int, depth: float, variant: str = "nolima",
+              name_from_1k: bool = False) -> dict:
     # main_rerun reuses main's character so the two are the same prompt
     base_cond = "main" if cond == "main_rerun" else cond
+    # The name is seeded by length, so 1K and 32K usually differ. name_from_1k gives every
+    # length the 1K test's name (same-name follow-up); the text placement is unchanged.
+    name_len = 1000 if name_from_1k else length
+    char = str(np.random.default_rng(seed_for(base_cond, t["pair"], name_len, depth)).choice(t["characters"]))
     rng = np.random.default_rng(seed_for(base_cond, t["pair"], length, depth))
-    char = str(rng.choice(t["characters"]))
+    if name_from_1k:
+        rng.choice(t["characters"])  # keep the distractor placement draws as before
     needle = t["needle"].replace("{CHAR}", char)
     if cond == "distractor":
         text = hay.place_with_distractor(needle, t["distractor"], length, depth, rng)
@@ -403,6 +409,8 @@ async def main() -> None:
     p.add_argument("--max-spend", type=float, help="stop starting new calls after this many dollars")
     p.add_argument("--dry", action="store_true", help="build the tests and print counts only")
     p.add_argument("--out", type=Path)
+    p.add_argument("--name-from-1k", action="store_true",
+                   help="same-name follow-up: every length uses the 1K test's character; writes results/same_name.jsonl")
     p.add_argument("--prompt", choices=list(PROMPT_VARIANTS), default="nolima",
                    help="prompt follow-up; a non-default variant writes to results/prompt_<variant>.jsonl")
     args = p.parse_args()
@@ -415,14 +423,15 @@ async def main() -> None:
     if args.long:
         tests = [t for t in build_tests(long=True) if t["length"] == LONG]
     else:
-        tests = build_tests(lengths_override=args.length, variant=args.prompt)
+        tests = build_tests(lengths_override=args.length, variant=args.prompt, name_from_1k=args.name_from_1k)
     if args.rebuild:
         tests = [t for t in tests if t["condition"] == "main"]
         arms = dict([REBUILD_ARM])
         out_file = args.out or REBUILD_FILE
     else:
         arms = {a: ARMS[a] for a in (args.arm or [])}
-        out_file = args.out or (RESULTS_FILE if args.prompt == "nolima"
+        out_file = args.out or (RESULTS_FILE.parent / "same_name.jsonl" if args.name_from_1k
+                                else RESULTS_FILE if args.prompt == "nolima"
                                 else RESULTS_FILE.parent / f"prompt_{args.prompt}.jsonl")
     if args.condition:
         tests = [t for t in tests if t["condition"] in args.condition]
